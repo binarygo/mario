@@ -51,6 +51,16 @@ function LoopQueue:xarray()
   end
 end
 
-return {
-  LoopQueue = LoopQueue
+local function bool2IntArray(a)
+  local result = {}
+  for k, v in pairs(a) do
+    result[k] = v and 1 or 0
+  end
+  return result
+end
+
+util = {
+  LoopQueue = LoopQueue,
+  bool2IntArray = bool2IntArray,
 }
+return util
