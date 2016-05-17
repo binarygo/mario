@@ -1,8 +1,10 @@
 require "torch"
 
-require "mario_game"
-require "mario_model"
 require "mario_util"
+require "mario_game"
+require "mario_test_model"
+require "mario_q_model"
+require "mario_policy_model"
 
 torch.setdefaulttensortype('torch.FloatTensor')
 
@@ -41,8 +43,9 @@ local function doEpoch(model, debug)
 end
 
 local function main()
-  local model = mario_model.ModelTest:new()
-  -- local model = mario_model.ModelLinear:new("train", nil, "model.linear")
+  local model_class = mario_policy_model.PolicyLinear
+  local model = model_class:new(
+    "train", nil, "policy_linear.model")
   while doEpoch(model, true) do
   end
 end

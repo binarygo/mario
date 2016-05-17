@@ -1,7 +1,6 @@
 require "torch"
 
 require "mario_util"
-require "util"
 
 local SCREEN_WIDTH = 256
 local SCREEN_HEIGHT = 240
@@ -129,7 +128,7 @@ function sandbox:startGame(squeue_size)
     self._started = true
   end
   self:_updateGameState()
-  self._squeue = util.LoopQueue:new(squeue_size)
+  self._squeue = mario_util.LoopQueue:new(squeue_size)
   -- [{nil, nil s0}, (a0, r1, s1), (a1, r2, s2), ...]
   self._squeue:append({nil, nil, gameScreen()})
 end
