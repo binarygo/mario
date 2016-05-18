@@ -12,21 +12,29 @@ local function stdGameScreen(screen)
   return image.rgb2yuv(image.scale(x, STD_SCREEN_WIDTH, STD_SCREEN_HEIGHT))[1]
 end
 
-local PolicyLinear = {}
+local PolicyModel = {}
 
-function PolicyLinear:new(mode, load_from, save_to)
+function PolicyModel:linearModel()
+  local m = nn.Sequential()
+  local input_dim = STD_SCREEN_WIDTH * STD_SCREEN_HEIGHT * self:squeue_size()
+  local output_dim = 64
+  local hidden_dim = 500
+  m:add(nn.Linear(input_dim, hidden_dim))
+  m:add(nn.Tanh())
+  m:add(nn.Linear(hidden_dim, hidden_dim))
+  m:add(nn.Tanh())
+  m:add(nn.Linear(hidden_dim, output_dim))
+  m:add(nn.LogSoftMax())
+  return m
+end
+
+function PolicyModel:new(mode, load_from, save_to)
   local m, x, dx
   if load_from then
     print('Loading model from '..load_from)
     m = torch.load(load_from)
   else
-    m = nn.Sequential()
-    local input_dim = STD_SCREEN_WIDTH * STD_SCREEN_HEIGHT * self:squeue_size()
-    local output_dim = 64
-    m:add(nn.Linear(input_dim, 2000))
-    m:add(nn.Tanh())
-    m:add(nn.Linear(2000, output_dim))
-    m:add(nn.SoftMax())
+    m = self:linearModel()
   end
 
   x, dx = m:getParameters()
@@ -46,7 +54,7 @@ function PolicyLinear:new(mode, load_from, save_to)
     _m = m, -- model
     _x = x, -- model parameters
     _dx = dx, -- model grad parameters
-    _alpha = 0.01, -- learning rate
+    _alpha = 0.001, -- learning rate
     _sampling_rate = 0.1, -- sampling rate for elligible frames per epoch
     _epoch = 0,
     _current_state = nil,
@@ -58,22 +66,22 @@ function PolicyLinear:new(mode, load_from, save_to)
   return o
 end
 
-function PolicyLinear:squeue_size()
-  return 2
+function PolicyModel:squeue_size()
+  return 4
 end
 
-function PolicyLinear:num_sticky_frames()
+function PolicyModel:num_sticky_frames()
   return 3
 end
 
-function PolicyLinear:startEpoch(squeue)
+function PolicyModel:startEpoch(squeue)
   self._epoch = self._epoch + 1
   self._current_state = self:_zipState(squeue)
   self._sum_r = 0
   self._exp_cache = {}
 end
 
-function PolicyLinear:_zipState(squeue)
+function PolicyModel:_zipState(squeue)
   local ss = {}
   for i = 1, self:squeue_size() do
     local s = squeue[i]
@@ -87,8 +95,8 @@ function PolicyLinear:_zipState(squeue)
   return torch.cat(ss)
 end
 
-function PolicyLinear:selectAction()
-  local prob = self._m:forward(self._current_state)
+function PolicyModel:selectAction()
+  local prob = torch.exp(self._m:forward(self._current_state))
   local a = nil
   if self._is_train then
     a = torch.sum(torch.lt(torch.cumsum(prob), torch.uniform())) % 64
@@ -101,7 +109,7 @@ function PolicyLinear:selectAction()
   return a
 end
 
-function PolicyLinear:feedback(squeue, mario_dies, level_clear)
+function PolicyModel:feedback(squeue, mario_dies, level_clear)
   local s = self._current_state
   local a = squeue[#squeue][1]
   local r = squeue[#squeue][2]
@@ -109,31 +117,36 @@ function PolicyLinear:feedback(squeue, mario_dies, level_clear)
 
   -- update current state to be the next state
   self._current_state = sp
-  self._sum_r = self._sum_r + r + (mario_dies and -100 or 0)
+  self._sum_r = self._sum_r + r + (mario_dies and 0 or 0)
 
   print("Reward: "..self._sum_r)
   
   if self._is_train and self._sampling_rate > torch.uniform() then
-    self._dx:zero()
-    self._m:forward(s)
-    grad_output = torch.zeros(64):float()
-    grad_output[a + 1] = 1
-    self._m:backward(s, grad_output)
-    table.insert(self._exp_cache, {self._dx:clone(), self._sum_r})
+    table.insert(self._exp_cache, {s, a, self._sum_r})
   end
 end
 
-function PolicyLinear:endEpoch()
+function PolicyModel:endEpoch()
   local cont = false
   if self._is_train then
     print("End epoch training: #exp_cache = "..#self._exp_cache)
-    for i, exp in ipairs(self._exp_cache) do
-      dpi, sum_r = exp[1], exp[2]
-      q = self._sum_r - sum_r
+    local shuffle = torch.IntTensor()
+    torch.randperm(shuffle, #self._exp_cache)
+    for i = 1,#self._exp_cache do
+      local exp = self._exp_cache[shuffle[i]]
+      local s, a, sum_r = exp[1], exp[2], exp[3]
+      self._dx:zero()
+      self._m:forward(s)
+      local grad_output = torch.zeros(64):float()
+      grad_output[a + 1] = 1
+      self._m:backward(s, grad_output)
+
+      local dlog_pi = self._dx
+      local q = self._sum_r - sum_r
       if math.abs(q) ~= 0 then
-        self._x:add(dpi * q * self._alpha)
-        print(string.format("|dpi| = %.2f, E(Q) = %.2f, |x| = %.2f",
-                            torch.norm(dpi), q, torch.norm(self._x)))
+        self._x:add(dlog_pi * q * self._alpha)
+        print(string.format("|dlog_pi| = %.2f, E(Q) = %.2f, |x| = %.2f",
+                            torch.norm(dlog_pi), q, torch.norm(self._x)))
       end
     end
     cont = true
@@ -141,7 +154,7 @@ function PolicyLinear:endEpoch()
     cont = self._epoch < 1
   end
   if self._save_to then
-    local save_to = self._save_to.."."..(self._epoch % 10)
+    local save_to = self._save_to.."."..((self._epoch - 1) % 5 + 1)
     print("Saving model to "..save_to)
     torch.save(save_to, self._m)
   end
@@ -149,6 +162,6 @@ function PolicyLinear:endEpoch()
 end
 
 mario_policy_model = {
-  PolicyLinear = PolicyLinear
+  PolicyModel = PolicyModel
 }
 return mario_policy_model

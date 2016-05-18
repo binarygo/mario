@@ -43,9 +43,9 @@ local function doEpoch(model, debug)
 end
 
 local function main()
-  local model_class = mario_policy_model.PolicyLinear
+  local model_class = mario_policy_model.PolicyModel
   local model = model_class:new(
-    "train", nil, "policy_linear.model")
+    "train", nil, "policy_model.sav")
   while doEpoch(model, true) do
   end
 end
