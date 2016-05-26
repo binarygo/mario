@@ -10,8 +10,10 @@ require "mario_util"
 local _ENABLE_CUDA = true
 local _TRAIN_FREQ = 1  -- train every # steps
 local _EXP_SAMPLING_FREQ = 1  -- sample experience every # steps
+-- TODO: increae to 1000000
 local _EXP_CACHE_CAPACITY = 2000  -- experience cache capacity
-local _MINIBATCH_SIZE = 16  -- TODO: increase to 32
+-- TODO: increase to 32
+local _MINIBATCH_SIZE = 16  -- minibatch size
 local _DISCOUNT_FACTOR = 0.9
 local _SQUEUE_SIZE = 4  -- state queue size
 local _NUM_STICKY_FRAMES = 6  -- # sticky frames
@@ -216,17 +218,20 @@ function QModel:feedback(squeue, mario_dies, level_clear)
       target_q = r + _DISCOUNT_FACTOR * self:_maxQ(sp)
     end
     local q = self:_evalQ(s, a)  -- *
-    local grad_output = torch.zeros(
-      #mario_util.joypad_input_code_from_simple):float()
-    if _ENABLE_CUDA then
-      grad_output = grad_output:cuda()
+    local dq = target_q - q
+    if dq ~= 0 then
+      local grad_output = torch.zeros(
+	#mario_util.joypad_input_code_from_simple):float()
+      if _ENABLE_CUDA then
+	grad_output = grad_output:cuda()
+      end
+      grad_output[a] = 1
+      self._dx:zero()
+      -- m.model:forward() has been called at *
+      self._m.model:backward(s, grad_output)
+      -- TODO: more sophisticated learning methods
+      self._x:add(self._dx * 1.0e-4 * dq)
     end
-    grad_output[a] = 1
-    self._dx:zero()
-    -- m.model:forward() has been called at *
-    self._m.model:backward(s, grad_output)
-    -- TODO: more sophisticated learning methods
-    self._x:add(self._dx * 1.0e-4 * (target_q - q))
   end
 end
 
