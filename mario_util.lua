@@ -1,3 +1,5 @@
+require "torch"
+
 local LoopQueue = {}
 
 function LoopQueue:new(max_n)
@@ -18,6 +20,14 @@ function LoopQueue:append(x)
   end
   self[self._next] = x
   self._next = self._next % self._max_n + 1
+end
+
+function LoopQueue:isFull()
+  return self._full
+end
+
+function LoopQueue:maxSize()
+  return self._max_n
 end
 
 function LoopQueue:size()
@@ -63,6 +73,31 @@ local function hasBit(x, p)
   return x % (p + p) >= p
 end
 
+local function reverseTable(t)
+  local result = {}
+  for k, v in pairs(t) do
+    result[v] = k
+  end
+  return result
+end
+
+local joypad_input_code_from_simple = {
+  0x00,  -- nil
+  -- 0x08,  -- left
+  0x04,  -- right
+  0x20,  -- up
+  0x10,  -- down
+  0x02,  -- A
+  0x01,  -- B
+  -- 0x0A,  -- left + A
+  0x06,  -- right + A
+  -- 0x09,  -- left + B
+  0x05,  -- right + B
+}
+
+local joypad_input_code_to_simple = reverseTable(
+  joypad_input_code_from_simple)
+
 local function decodeJoypadInput(input_code)
   -- input_code is an 8-bit integer in [0, 255]
   -- |start|select|up|down|left|right|A|B|
@@ -89,13 +124,39 @@ local function joypadInputToString(input)
   return table.concat(ss, "|")
 end
 
+function log(f, msg)
+  if f then
+    print(msg)
+    f:write(msg.."\n")
+    f:flush()
+  end
+end
+
+function randSample(m, n)
+  -- random sample m numbers from 1..n without replacement
+  m = math.min(m, n)
+  local result = {}
+  local result_set = {}
+  for i = 1,m do
+    local i = torch.random(1, n)
+    while result_set[i] do
+      i = torch.random(1, n)
+    end
+    result[#result + 1] = i
+    result_set[i] = true
+  end
+  return result
+end
+
 mario_util = {
   LoopQueue = LoopQueue,
   bool2IntArray = bool2IntArray,
   decodeJoypadInput = decodeJoypadInput,
   joypadInputToString = joypadInputToString,
-  S_SCREEN_WIDTH = S_SCREEN_WIDTH,
-  S_SCREEN_HEIGHT = S_SCREEN_HEIGHT,
-  stdGameScreen = stdGameScreen,
+  joypad_input_code_from_simple = joypad_input_code_from_simple,
+  joypad_input_code_to_simple = joypad_input_code_to_simple,
+  reverseTable = reverseTable,
+  log = log,
+  randSample = randSample,
 }
 return mario_util

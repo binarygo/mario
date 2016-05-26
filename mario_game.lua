@@ -35,6 +35,14 @@ local function getMarioLives()
   return memory.readbyte(0x075A)
 end
 
+local function getPlayerState()
+  return memory.readbyte(0x000E)
+end
+
+local function getHScroll()
+  return memory.readbyte(0x778)
+end
+
 local function getMarioScore()
   local score = 0
   local score_addr = 0x07DD
@@ -64,7 +72,9 @@ local function gameScreen()
 end
 
 local sandbox = {
-  _started = false,
+  _has_save = false,
+  _h = nil,
+  _sum_h = 0,
   _mario_lives = nil,
   _world = nil,
   _level = nil,
@@ -74,6 +84,8 @@ local sandbox = {
 }
 
 function sandbox:_reset()
+  self._h = nil
+  self._sum_h = 0
   self._mario_lives = nil
   self._world = nil
   self._level = nil
@@ -95,12 +107,14 @@ function sandbox:_loadGame()
 end
 
 function sandbox:_updateGameState()
+  local h = getHScroll()
   local mario_lives = getMarioLives()
   local world = getWorld()
   local level = getLevel()
-  -- Never time up!
-  -- memory.writebyte(0x07F8, 3)
   
+  if self._h then
+    self._sum_h = self._sum_h + math.max(0, h - self._h)
+  end
   if self._mario_lives then
     self._mario_dies = mario_lives < self._mario_lives
   end
@@ -108,6 +122,7 @@ function sandbox:_updateGameState()
     self._level_clear = (world ~= self._world or level ~= self._level)
   end
 
+  self._h = h
   self._mario_lives = mario_lives
   self._world = world
   self._level = level
@@ -115,7 +130,7 @@ end
 
 function sandbox:startGame(squeue_size)
   self:_reset()
-  if self._started then
+  if self._has_save then
     self:_loadGame()
   else
     emu.speedmode("normal")
@@ -125,8 +140,13 @@ function sandbox:startGame(squeue_size)
     setJoypad(1, 0x80)
     skipLiveScreen()
     self:_saveGame()
-    self._started = true
+    self._has_save = true
   end
+  -- set time to 999
+  memory.writebyte(0x07F8, 9)
+  memory.writebyte(0x07F9, 9)
+  memory.writebyte(0x07FA, 9)
+
   self:_updateGameState()
   self._squeue = mario_util.LoopQueue:new(squeue_size)
   -- [{nil, nil s0}, (a0, r1, s1), (a1, r2, s2), ...]
@@ -145,8 +165,21 @@ function sandbox:isGameEnd()
   return self._mario_dies or self._level_clear
 end
 
+function sandbox:getMarioScore()
+  return getMarioScore()
+end
+
+function sandbox:getSumH()
+  return self._sum_h
+end
+
+function sandbox:getReward()
+  -- return getMarioScore() + self._sum_h
+  return getMarioScore()
+end
+
 function sandbox:next(action, num_sticky_frames)
-  local old_score = getMarioScore()
+  local old_reward = self:getReward()
   for i = 1, num_sticky_frames do
     if action then
       setJoypad(1, action)
@@ -157,7 +190,8 @@ function sandbox:next(action, num_sticky_frames)
       break
     end
   end
-  local s = {action, getMarioScore() - old_score, gameScreen()}
+  local new_reward = self:getReward()
+  local s = {action, new_reward - old_reward, gameScreen()}
   self._squeue:append(s)
   return s
 end

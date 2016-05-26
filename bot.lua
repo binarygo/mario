@@ -28,6 +28,10 @@ local function doEpoch(model, debug)
   while not mario_game.sandbox:isGameEnd() do
     local a = model:selectAction()
     if debug then
+      printMessage(string.format(
+        "score = %d, sum_h = %d",
+	mario_game.sandbox:getMarioScore(),
+	mario_game.sandbox:getSumH()))
       printMessage(
         mario_util.joypadInputToString(mario_util.decodeJoypadInput(a)))
     end
@@ -43,9 +47,10 @@ local function doEpoch(model, debug)
 end
 
 local function main()
-  local model_class = mario_policy_model.PolicyModel
+  local model_class = mario_q_model.QModel
   local model = model_class:new(
-    "train", nil, "policy_model.sav")
+    "train", nil, "q_model.sav",
+    io.open("q_model.log", "a"))
   while doEpoch(model, true) do
   end
 end

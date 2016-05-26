@@ -26,7 +26,7 @@ function TestRand:startEpoch(squeue)
 end
 
 function TestRand:selectAction()
-  return torch.random(0, 63)
+  return 5 -- torch.random(0, 63)
 end
 
 function TestRand:feedback(squeue, mario_dies, level_clear)
