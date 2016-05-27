@@ -24,7 +24,7 @@ local _DISCOUNT_FACTOR = 0.9
 local _TRAIN_EPS_SCHEDULE = {
   start_eps = 1.0,
   end_eps = 0.1,
-  num_steps = 100000,  -- TODO: increase to 1000000
+  num_steps = 1000000,  -- TODO: increase to 1000000
 }
 local _TEST_EPS = 0.05
 
@@ -79,7 +79,7 @@ function QModel:new(mode, load_from, save_to, log_file)
   x, dx = m.model:getParameters()
   if not load_from then
     -- x:zero()
-    x:copy((torch.randn(x:size()) * 0.1):cuda())
+    x:copy((torch.randn(x:size()) * 1.0e-6):cuda())
   end
 
   local is_train = (mode == "train")
@@ -174,6 +174,7 @@ end
 
 function QModel:_greedyAction()
   local max_q, max_a = self:_maxQ(self:_toCuda(self._current_state))
+  print("max_q = "..max_q)
   return max_a
 end
 
