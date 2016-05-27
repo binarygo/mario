@@ -227,7 +227,7 @@ function QModel:_doTraining()
     self._dx:zero()
     -- m.model:forward() has been called at *
     self._m.model:backward(s, grad_output)
-    sum_dx:add(self._dx)
+    sum_dx:add(self._dx * dq)
   end
 
   self._avg_ms_dx = self._avg_ms_dx * 0.9 + torch.pow(sum_dx, 2) * 0.1
