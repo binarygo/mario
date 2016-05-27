@@ -18,7 +18,7 @@ local _EXP_SAMPLING_FREQ = 1  -- sample experience every # steps
 local _EXP_CACHE_CAPACITY = 10000  -- experience cache capacity
 -- TODO: set to 32
 local _MINIBATCH_SIZE = 16  -- minibatch size
-local _LEARNING_RATE = 1.0e-4
+local _LEARNING_RATE = 1.0e-5
 
 local _DISCOUNT_FACTOR = 0.9
 local _TRAIN_EPS_SCHEDULE = {
