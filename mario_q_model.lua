@@ -1,18 +1,22 @@
 require "image"
 require "torch"
-require "cutorch"
 require "nn"
-require "cunn"
-require "cudnn"
 
 require "mario_util"
 
 local _ENABLE_CUDA = true
+if _ENABLE_CUDA then
+  require "cutorch"
+  require "cunn"
+  require "cudnn"  
+end
+
+-- TODO: set to 1
 local _TRAIN_FREQ = 4  -- train every # steps
 local _EXP_SAMPLING_FREQ = 1  -- sample experience every # steps
--- TODO: increae to 1000000
+-- TODO: set to 1000000
 local _EXP_CACHE_CAPACITY = 10000  -- experience cache capacity
--- TODO: increase to 32
+-- TODO: set to 32
 local _MINIBATCH_SIZE = 16  -- minibatch size
 local _LEARNING_RATE = 1.0e-4
 

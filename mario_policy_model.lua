@@ -1,13 +1,16 @@
 require "image"
 require "torch"
-require "cutorch"
 require "nn"
-require "cunn"
-require "cudnn"
 
 require "mario_util"
 
 local _ENABLE_CUDA = true
+if _ENABLE_CUDA then
+  require "cutorch"
+  require "cunn"
+  require "cudnn"  
+end
+
 local _LEARNING_RATE = 0.0001  -- learning rate
 local _FRAME_SAMPLING_RATE = 0.01  -- sampling rate for elligible frames per epoch
 local _EXP_CACHE_CAPACITY = 20  -- experience cache capacity
