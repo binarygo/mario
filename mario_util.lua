@@ -83,7 +83,7 @@ end
 
 local joypad_input_code_from_simple = {
   0x00,  -- nil
-  -- 0x08,  -- left
+  0x08,  -- left
   0x04,  -- right
   0x20,  -- up
   0x10,  -- down

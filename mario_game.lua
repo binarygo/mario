@@ -2,6 +2,8 @@ require "torch"
 
 require "mario_util"
 
+local _MAX_TIME = false
+
 local SCREEN_WIDTH = 256
 local SCREEN_HEIGHT = 240
 
@@ -142,10 +144,12 @@ function sandbox:startGame(squeue_size)
     self:_saveGame()
     self._has_save = true
   end
-  -- set time to 999
-  memory.writebyte(0x07F8, 9)
-  memory.writebyte(0x07F9, 9)
-  memory.writebyte(0x07FA, 9)
+  if _MAX_TIME then
+    -- set time to 999
+    memory.writebyte(0x07F8, 9)
+    memory.writebyte(0x07F9, 9)
+    memory.writebyte(0x07FA, 9)
+  end
 
   self:_updateGameState()
   self._squeue = mario_util.LoopQueue:new(squeue_size)

@@ -8,11 +8,11 @@ local _ENABLE_CUDA = true
 if _ENABLE_CUDA then
   require "cutorch"
   require "cunn"
-  require "cudnn"  
+  require "cudnn"
 end
 
 -- TODO: set to 1
-local _TRAIN_FREQ = 4  -- train every # steps
+local _TRAIN_FREQ = 1  -- train every # steps
 local _EXP_SAMPLING_FREQ = 1  -- sample experience every # steps
 -- TODO: set to 1000000
 local _EXP_CACHE_CAPACITY = 10000  -- experience cache capacity
@@ -20,16 +20,18 @@ local _EXP_CACHE_CAPACITY = 10000  -- experience cache capacity
 local _MINIBATCH_SIZE = 16  -- minibatch size
 local _LEARNING_RATE = 1.0e-5
 
+-- TODO: set to 1.0
 local _DISCOUNT_FACTOR = 0.9
 local _TRAIN_EPS_SCHEDULE = {
   start_eps = 1.0,
   end_eps = 0.1,
-  num_steps = 1000000,  -- TODO: increase to 1000000
+  -- TODO: increase to 1000000
+  num_steps = 1000000,
 }
 local _TEST_EPS = 0.05
 
 local _SQUEUE_SIZE = 4  -- state queue size
-local _NUM_STICKY_FRAMES = 6  -- # sticky frames
+local _NUM_STICKY_FRAMES = 6  -- sticky frames
 
 local QModel = {}
 
@@ -38,19 +40,21 @@ function QModel:_convNetModel()
   local std_screen_height = 84
 
   local function stdGameScreen(screen)
-    local x = image.crop(screen, 49, 60, 208, 219)
-    x = image.rgb2yuv(
-      image.scale(x, std_screen_width, std_screen_height))
-    return x[{{1}, {}, {}}]
+    local s_rgb = image.scale(
+      image.crop(screen, 49, 60, 208, 219),
+      std_screen_width, std_screen_height)
+    local s_yuv = image.rgb2yuv(s_rgb)
+    local s = s_yuv[{{1}, {}, {}}]
+    return s
   end
 
   local model = nn.Sequential()
   model:add(nn.SpatialConvolution(self:squeue_size(),16,8,8,4,4,0,0))  -- 84 --> 20
-  model:add(nn.ReLU(true))
+  model:add(nn.Tanh())
   model:add(nn.SpatialConvolution(16,32,4,4,2,2,0,0))  -- 20 --> 9
-  model:add(nn.ReLU(true))
+  model:add(nn.Tanh())
   model:add(nn.View(32*9*9))
-  model:add(nn.Dropout(0.5))
+  -- model:add(nn.Dropout(0.5))
   model:add(nn.Linear(32*9*9, 256))
   model:add(nn.ReLU(true))
   -- valid button combo
@@ -79,7 +83,7 @@ function QModel:new(mode, load_from, save_to, log_file)
   x, dx = m.model:getParameters()
   if not load_from then
     -- x:zero()
-    x:copy((torch.randn(x:size()) * 1.0e-6):cuda())
+    x:copy((torch.rand(x:size()) * 1.0e-6):cuda())
   end
 
   local is_train = (mode == "train")
@@ -271,11 +275,16 @@ function QModel:_saveModel()
   self._num_saves = self._num_saves + 1
   local id = (self._num_saves - 1) % 5 + 1
   local model_save_to = self._save_to..".model."..id
+  local sample_save_to = self._save_to..".sample."..id
 
   self:_log(string.format("|x| = %.2f", torch.norm(self._x)))
 
   self:_log("Saving model to "..model_save_to)
-  torch.save(model_save_to, self._m)
+  torch.save(model_save_to, self._m.model)
+
+  local exp_sample = self._exp_cache[torch.random(1, self._exp_cache:size())]
+  self:_log("Saving sample exp to "..sample_save_to)
+  torch.save(sample_save_to, exp_sample)  
 end
 
 function QModel:endEpoch()
