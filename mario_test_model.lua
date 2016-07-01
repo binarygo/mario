@@ -1,4 +1,5 @@
 require "torch"
+md5 = require "md5"
 
 local TestRand = {}
 
@@ -58,7 +59,7 @@ function TestUct:new()
 end
 
 function TestUct:squeue_size()
-  return 4
+  return 1
 end
 
 function TestUct:num_sticky_frames()
@@ -68,7 +69,7 @@ end
 function TestUct:startEpoch(squeue)
   self._epoch = self._epoch + 1
   self._ref_action_cursor = 1
-  self._squeue = squeue
+  self._squeue = {squeue[1]}
 end
 
 function TestUct:selectAction()
@@ -84,14 +85,11 @@ function TestUct:selectAction()
 end
 
 function TestUct:feedback(squeue, mario_dies, level_clear)
-  self._squeue = squeue
+  table.insert(self._squeue, squeue[1])
 end
 
 local function checkEq(h, a, b)
-  if a ~= b then
-    return false
-  end
-  return true
+  assert(a == b, "error: "..h)
 end
 
 function TestUct:endEpoch()
@@ -105,11 +103,13 @@ function TestUct:endEpoch()
     print(string.format("cur_size = %d", #cur))
     if checkEq("size", #ref, #cur) then
       for i = 1,#ref do
-        checkEq("action", ref[i][0], cur[i][0])
-        checkEq("delta_reward", ref[i][1], cur[i][1])
-        checkEq("state", ref[i][2], cur[i][2])
-        print(string.format("ref_state = %s", ref[i][2]))
-        print(string.format("cur_state = %s", cur[i][2]))
+        checkEq("action", ref[i][1], cur[i][1])
+        checkEq("delta_reward", ref[i][2], cur[i][2])
+        checkEq("state", ref[i][3], cur[i][3])
+        print(string.format("ref_state = %d, %s",
+                            #ref[i][3], md5.sum(ref[i][3])))
+        print(string.format("cur_state = %d, %s",
+                            #cur[i][3], md5.sum(cur[i][3])))
       end
     end
   end
