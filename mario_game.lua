@@ -1,4 +1,5 @@
 require "torch"
+require "math"
 
 require "mario_util"
 
@@ -162,7 +163,7 @@ function sandbox:startGame(squeue_size)
     memory.writebyte(0x07F9, 9)
     memory.writebyte(0x07FA, 9)
   end
-
+    
   if self.delayed_start then
     for i = 1, 100 do
       emu.frameadvance()
@@ -213,7 +214,11 @@ function sandbox:next(action, num_sticky_frames)
     end
   end
   local new_reward = self:getReward()
-  local s = {action, new_reward - old_reward, self._get_state_fn()}
+  local s = {
+    action,
+    math.max(0.0, new_reward - old_reward),
+    self._get_state_fn()
+  }
   self._squeue:append(s)
   return s
 end

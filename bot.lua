@@ -5,6 +5,7 @@ require "mario_game"
 require "mario_test_model"
 require "mario_q_model"
 require "mario_policy_model"
+require "mario_uct_model"
 
 torch.setdefaulttensortype('torch.FloatTensor')
 
@@ -64,5 +65,16 @@ local function test_uct_main()
   end
 end
 
+local function uct_model_main()
+  mario_game.sandbox.use_ram_as_state = true
+  local model_class = mario_uct_model.UctModel
+  local model = model_class:new(
+    "uct_model.sav",
+    io.open("uct_model.log", "a"))
+  while doEpoch(model, true) do
+  end  
+end
+
 -- q_model_main()
-test_uct_main()
+-- test_uct_main()
+uct_model_main()
