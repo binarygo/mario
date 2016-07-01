@@ -43,5 +43,3 @@
    dQ = r + g * max_a'Q(s', a'; theta) - Q(s, a; theta)
    gradQ = grad of Q(s, a; theta) w.r.t theta
    theta <- theta + alpha * dQ * gradQ where alpha is the learning rate.
-   
- 
