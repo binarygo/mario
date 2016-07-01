@@ -163,7 +163,7 @@ function sandbox:startGame(squeue_size)
     memory.writebyte(0x07F9, 9)
     memory.writebyte(0x07FA, 9)
   end
-    
+  
   if self.delayed_start then
     for i = 1, 100 do
       emu.frameadvance()
