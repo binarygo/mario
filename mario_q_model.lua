@@ -4,7 +4,7 @@ require "nn"
 
 require "mario_util"
 
-local _ENABLE_CUDA = true
+local _ENABLE_CUDA = false
 if _ENABLE_CUDA then
   require "cutorch"
   require "cunn"
@@ -12,16 +12,16 @@ if _ENABLE_CUDA then
 end
 
 -- TODO: set to 1
-local _TRAIN_FREQ = 1  -- train every # steps
+local _TRAIN_FREQ = 8  -- train every # steps
 local _EXP_SAMPLING_FREQ = 1  -- sample experience every # steps
 -- TODO: set to 1000000
-local _EXP_CACHE_CAPACITY = 10000  -- experience cache capacity
+local _EXP_CACHE_CAPACITY = 20000  -- experience cache capacity
 -- TODO: set to 32
 local _MINIBATCH_SIZE = 16  -- minibatch size
-local _LEARNING_RATE = 1.0e-5
+local _LEARNING_RATE = 1.0e-6
 
 -- TODO: set to 1.0
-local _DISCOUNT_FACTOR = 0.9
+local _DISCOUNT_FACTOR = 0.95
 local _TRAIN_EPS_SCHEDULE = {
   start_eps = 1.0,
   end_eps = 0.1,
@@ -31,7 +31,7 @@ local _TRAIN_EPS_SCHEDULE = {
 local _TEST_EPS = 0.05
 
 local _SQUEUE_SIZE = 4  -- state queue size
-local _NUM_STICKY_FRAMES = 6  -- sticky frames
+local _NUM_STICKY_FRAMES = 12  -- sticky frames
 
 local QModel = {}
 
@@ -44,12 +44,12 @@ function QModel:_convNetModel()
       image.crop(screen, 49, 60, 208, 219),
       std_screen_width, std_screen_height)
     local s_yuv = image.rgb2yuv(s_rgb)
-    local s = s_yuv[{{1}, {}, {}}]
-    return s
+    --local s = s_yuv[{{1}, {}, {}}]
+    return s_yuv
   end
 
   local model = nn.Sequential()
-  model:add(nn.SpatialConvolution(self:squeue_size(),16,8,8,4,4,0,0))  -- 84 --> 20
+  model:add(nn.SpatialConvolution(3*self:squeue_size(),16,8,8,4,4,0,0))  -- 84 --> 20
   model:add(nn.Tanh())
   model:add(nn.SpatialConvolution(16,32,4,4,2,2,0,0))  -- 20 --> 9
   model:add(nn.Tanh())
@@ -148,6 +148,11 @@ function QModel:_zipState(squeue)
       ss[#ss + 1] = ss[#ss]
     end
   end
+  --local ss_diff = {}
+  --for i = 1, self:squeue_size() - 1 do
+  --  ss_diff[#ss_diff + 1] = ss[i + 1] - ss[i]
+  --end
+  --ss_diff[#ss_diff + 1] = ss[#ss]
   return torch.cat(ss, 1)
 end
 

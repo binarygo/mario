@@ -2,8 +2,6 @@ require "torch"
 
 require "mario_util"
 
-local _MAX_TIME = false
-
 local SCREEN_WIDTH = 256
 local SCREEN_HEIGHT = 240
 
@@ -73,6 +71,11 @@ local function gameScreen()
     3, SCREEN_HEIGHT, SCREEN_WIDTH):float() / 255.0
 end
 
+local function gameRam()
+  local s = memory.readbyterange(0x0000, 0x800)
+  return s
+end
+
 local sandbox = {
   _has_save = false,
   _h = nil,
@@ -82,7 +85,11 @@ local sandbox = {
   _level = nil,
   _mario_dies = false,
   _level_clear = false,
-  _squeue = nil
+  _squeue = nil,
+  
+  max_time = false,
+  delayed_start = false,
+  use_ram_as_state = false,
 }
 
 function sandbox:_reset()
@@ -94,6 +101,11 @@ function sandbox:_reset()
   self._mario_dies = false
   self._level_clear = false
   self._squeue = nil
+  if self.use_ram_as_state then
+    self._get_state_fn = gameRam
+  else
+    self._get_state_fn = gameScreen
+  end
 end
 
 function sandbox:_saveGame()
@@ -144,17 +156,23 @@ function sandbox:startGame(squeue_size)
     self:_saveGame()
     self._has_save = true
   end
-  if _MAX_TIME then
+  if self.max_time then
     -- set time to 999
     memory.writebyte(0x07F8, 9)
     memory.writebyte(0x07F9, 9)
     memory.writebyte(0x07FA, 9)
   end
 
+  if self.delayed_start then
+    for i = 1, 100 do
+      emu.frameadvance()
+    end
+  end
+
   self:_updateGameState()
   self._squeue = mario_util.LoopQueue:new(squeue_size)
   -- [{nil, nil s0}, (a0, r1, s1), (a1, r2, s2), ...]
-  self._squeue:append({nil, nil, gameScreen()})
+  self._squeue:append({nil, nil, self._get_state_fn()})
 end
 
 function sandbox:marioDies()
@@ -195,7 +213,7 @@ function sandbox:next(action, num_sticky_frames)
     end
   end
   local new_reward = self:getReward()
-  local s = {action, new_reward - old_reward, gameScreen()}
+  local s = {action, new_reward - old_reward, self._get_state_fn()}
   self._squeue:append(s)
   return s
 end

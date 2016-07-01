@@ -4,7 +4,7 @@ require "nn"
 
 require "mario_util"
 
-local _ENABLE_CUDA = true
+local _ENABLE_CUDA = false
 if _ENABLE_CUDA then
   require "cutorch"
   require "cunn"

@@ -46,7 +46,8 @@ local function doEpoch(model, debug)
   return model:endEpoch()
 end
 
-local function main()
+local function q_model_main()
+  mario_game.sandbox.delayed_start = true
   local model_class = mario_q_model.QModel
   local model = model_class:new(
     "train", nil, "q_model.sav",
@@ -55,4 +56,13 @@ local function main()
   end
 end
 
-main()
+local function test_uct_main()
+  mario_game.sandbox.use_ram_as_state = true
+  local model_class = mario_test_model.TestUct
+  local model = model_class:new()
+  while doEpoch(model, true) do
+  end
+end
+
+-- q_model_main()
+test_uct_main()
