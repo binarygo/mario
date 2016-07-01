@@ -232,7 +232,7 @@ function UctModel:_debugNodes()
     end
     node_count = node_count + 1
   end
-  self:_log(string.format("#nodes = %d", node_count))
+  self:_log(string.format("#nodes = %d", node_count - 1))
 end
 
 function UctModel:_saveModel()
