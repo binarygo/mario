@@ -1,5 +1,6 @@
 require "torch"
 require "math"
+md5 = require "md5"
 
 require "mario_util"
 
@@ -74,7 +75,7 @@ end
 
 local function gameRam()
   local s = memory.readbyterange(0x0000, 0x800)
-  return s
+  return md5.sum(s)
 end
 
 local sandbox = {

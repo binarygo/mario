@@ -260,7 +260,7 @@ function QModel:feedback(squeue, mario_dies, level_clear)
   self:_updateEps()
   
   if not self._is_train then
-    return
+    return true
   end
 
   if 0 == self._step % _EXP_SAMPLING_FREQ then
@@ -271,6 +271,7 @@ function QModel:feedback(squeue, mario_dies, level_clear)
       self._exp_cache:isFull()) then
     self:_doTraining()
   end
+  return true
 end
 
 function QModel:_saveModel()

@@ -4,9 +4,11 @@ require "math"
 require "mario_util"
 
 local _NUM_STICKY_FRAMES = 12  -- sticky frames
-local _MIN_VISITS_TO_EXPAND_NODE = 5  -- min # visits to expand a node
-local _MAX_SIMULATIONS_PER_ROOT = 1000
-local _UCT_CONST = 1000.0
+local _MIN_VISITS_TO_EXPAND_NODE = 1  -- min # visits to expand a node
+local _MAX_SIMULATIONS = 100
+local _MAX_DEPTH = 60
+local _UCT_CONST = 100.0
+local _MAX_Q = true
 
 local UctModel = {}
 
@@ -19,9 +21,10 @@ function UctModel:new(save_to, log_file)
     _log_file = log_file,
 
     _nodes = {},
-    _ans_actions = {},
+    _ans_actions = {5,5,5,5,5},
     
     _epoch = 0,
+    _depth = 0,
     _total_reward = 0.0,
     _created_new_arc = false,
     _root_state = nil,
@@ -98,6 +101,7 @@ end
 
 function UctModel:startEpoch(squeue)
   self._epoch = self._epoch + 1
+  self._depth = 0
   self._total_reward = 0.0
   self._created_new_arc = false
   self._root_state = nil
@@ -164,6 +168,7 @@ end
 function UctModel:selectAction()
   local action = self:_getAnsAction()
   if action then
+    print("Ans action")
     return action
   end
   
@@ -172,9 +177,11 @@ function UctModel:selectAction()
   if node and node.narcs == #legal_actions then
     -- if the node has full arcs.
     action = self:_findMaxQAction(node)
+    print("UCB action")
   else
     local rest_actions = self:_getRestActions(legal_actions, node)
     action = rest_actions[torch.random(1, #rest_actions)]
+    print("Random action")
   end
   assert(action ~= nil, "selected action must not be nil")
   return action
@@ -184,12 +191,18 @@ function UctModel:feedback(squeue, mario_dies, level_clear)
   local a, r, s = self:_expand(squeue[1])  -- transition from node to s
   self._total_reward = self._total_reward + r
   if self:_delayedInit(squeue) then
-    return
+    return true
   end
+
+  print("depth = "..self._depth)
+  if self._depth >= _MAX_DEPTH then
+    return false
+  end
+  self._depth = self._depth + 1
   
   local node = self._current_node
   if not node then
-    return
+    return true
   end
   
   local arc = node.arcs[a]
@@ -209,30 +222,32 @@ function UctModel:feedback(squeue, mario_dies, level_clear)
   else
     self._current_node = nil
   end
+  return true
 end
 
 function UctModel:_debugNodes()
-  print("================= debug ================")
-  print("ans actions: ")
+  self:_log("================= debug ================")
+  self:_log("ans actions: ")
   for i, a in ipairs(self._ans_actions) do
-    print(string.format("%d, ", a))
+    self:_log(string.format("%d, ", a))
   end
-  print(string.format("total_reward = %d", self._total_reward))
+  self:_log(string.format("total_reward = %d", self._total_reward))
   local node_count = 1
   for s, node in pairs(self._nodes) do
-    print(string.format("node #%d", node_count))
-    print(string.format("  nsim = %d", node.nsim))
+    self:_log(string.format("node #%d", node_count))
+    self:_log(string.format("  nsim = %d", node.nsim))
     for a, arc in pairs(node.arcs) do
-      print(string.format("  arc a = %d", a))
-      print(string.format("    nsim = %d", arc.nsim))
-      print(string.format("    q    = %.2f", arc.q))
+      self:_log(string.format("  arc a = %d", a))
+      self:_log(string.format("    nsim = %d", arc.nsim))
+      self:_log(string.format("    q    = %.2f", arc.q))
       if node.nsim > 0 and arc.nsim > 0 then
-        print(string.format("    qx   = %.2f", self:_evaluateQx(node, arc)))
+        self:_log(string.format("    qx   = %.2f", self:_evaluateQx(node, arc)))
       end
     end
     node_count = node_count + 1
   end
   self:_log(string.format("#nodes = %d", node_count - 1))
+  self:_log("========================================")
 end
 
 function UctModel:_saveModel()
@@ -280,18 +295,23 @@ function UctModel:endEpoch()
     local arc, node = h[1], h[2]
     if arc then
       arc.nsim = arc.nsim + 1
-      arc.q = arc.q + (self._total_reward - arc.q) * 1.0 / arc.nsim
+      if _MAX_Q then
+        arc.q = math.max(arc.q, self._total_reward)
+      else
+        arc.q = arc.q + (self._total_reward - arc.q) * 1.0 / arc.nsim
+      end
     end
     if node then
       node.nsim = node.nsim + 1
     end
   end
 
-  if self._root_node.nsim >= _MAX_SIMULATIONS_PER_ROOT then
+  if self._root_node.nsim >= _MAX_SIMULATIONS then
     local ans_action = self:_findMaxNSimAction(self._root_node)
     if ans_action then
       table.insert(self._ans_actions, ans_action)
-      self:_pruneNodes(self._root_node.arcs[ans_action].next_state)
+      -- self:_pruneNodes(self._root_node.arcs[ans_action].next_state)
+      self._nodes = {}  -- clear all nodes
     end
   end
   

@@ -226,6 +226,7 @@ function PolicyModel:feedback(squeue, mario_dies, level_clear)
   if self._is_train and _FRAME_SAMPLING_RATE > torch.uniform() then
     table.insert(self._exp, {self._step, s, a, self._sum_r})
   end
+  return true
 end
 
 function PolicyModel:_saveModel(data)

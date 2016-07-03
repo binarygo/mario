@@ -37,9 +37,11 @@ local function doEpoch(model, debug)
         mario_util.joypadInputToString(mario_util.decodeJoypadInput(a)))
     end
     mario_game.sandbox:next(a, model:num_sticky_frames())
-    model:feedback(mario_game.sandbox:squeue(),
-                   mario_game.sandbox:marioDies(),
-                   mario_game.sandbox:levelClear())
+    if not model:feedback(mario_game.sandbox:squeue(),
+                          mario_game.sandbox:marioDies(),
+                          mario_game.sandbox:levelClear()) then
+      break
+    end
   end
   if debug then
     printMessage("Game ends!")
