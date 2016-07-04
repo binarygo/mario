@@ -89,9 +89,9 @@ local joypad_input_code_from_simple = {
   0x10,  -- down
   0x02,  -- A
   0x01,  -- B
-  -- 0x0A,  -- left + A
+  0x0A,  -- left + A
   0x06,  -- right + A
-  -- 0x09,  -- left + B
+  0x09,  -- left + B
   0x05,  -- right + B
 }
 
