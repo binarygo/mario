@@ -2,7 +2,6 @@ require "torch"
 
 require "mario_util"
 require "mario_game"
-require "mario_test_model"
 require "mario_uct_model"
 
 local bot = {
@@ -43,24 +42,6 @@ function bot:doEpoch(model)
   return model:endEpoch()
 end
 
-local function test_rand_main()
-  mario_game.sandbox.state_choice = mario_game.STATE_CHOICE.ram_md5
-  mario_game.sandbox.num_skpi_frames = 12
-  bot.enable_debug = true
-  local model = mario_test_model.TestRand:new()
-  while bot:doEpoch(model) do
-  end
-end
-
-local function test_uct_main()
-  mario_game.sandbox.state_choice = mario_game.STATE_CHOICE.ram_md5
-  mario_game.sandbox.num_skpi_frames = 12
-  bot.enable_debug = true
-  local model = mario_test_model.TestUct:new()
-  while bot:doEpoch(model) do
-  end
-end
-
 local function uct_main()
   mario_game.sandbox.state_choice = mario_game.STATE_CHOICE.ram_md5
   mario_game.sandbox.num_skpi_frames = 12
@@ -71,6 +52,4 @@ local function uct_main()
   end
 end
 
--- test_rand_main()
--- test_uct_main()
 uct_main()
