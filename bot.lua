@@ -16,13 +16,14 @@ end
 
 function bot:doEpoch(model)
   -- The model object must have
-  --   model:startEpoch(s)
+  --   model:startEpoch(r, s)
   --   model:selectAction()
-  --   model:feedback(a, r, s, is_game_over)
+  --   model:feedback(a, r, s)
   --   model:stop()
   --   model:endEpoch()
   mario_game.sandbox:startGame()
-  model:startEpoch(mario_game.sandbox:getState())
+  model:startEpoch(mario_game.sandbox:getMarioStats(),
+                   mario_game.sandbox:getState())
   self:_debugMessage("Epoch starts!")
   while not mario_game.sandbox:isGameOver() and not model:stop() do
     local a = model:selectAction()
@@ -31,9 +32,8 @@ function bot:doEpoch(model)
     self:_debugMessage(mario_util.joypadInputToString(
                          mario_util.decodeJoypadInput(a)))
     mario_game.sandbox:advance(a)
-    if model:feedback(a, mario_game.sandbox:getMarioScore(),
-                      mario_game.sandbox:getState(),
-                      mario_game.sandbox:isGameOver()) then
+    if model:feedback(a, mario_game.sandbox:getMarioStats(),
+                      mario_game.sandbox:getState()) then
       mario_game.sandbox:setSave()
       self:_debugMessage("Updated save!")
     end

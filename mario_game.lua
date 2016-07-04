@@ -135,8 +135,25 @@ function sandbox:getMarioLives()
   return memory.readbyte(0x075A)
 end
 
+function sandbox:getMarioSpeed()
+  local v = memory.readbyte(0x0057)
+  if v <= 40 then
+    return v
+  elseif v >= 216 then
+    return v - 256
+  end
+  assert(false, "Invalid speed")
+end
+
 function sandbox:isGameOver()
   return self._is_game_over
+end
+
+function sandbox:getMarioStats()
+  return {
+    score = self:getMarioScore(),
+    is_game_over = self:isGameOver(),
+  }
 end
 
 function sandbox:_screenshot()

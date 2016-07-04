@@ -62,34 +62,55 @@ function UctModel:_getArc(node, action)
   return arc
 end
 
-function UctModel:_init(s)
-  if s then
-    self._depth = 1
-    self._created_new_arc = false
-    self._root_state = s
-    self._root_node = self:_getNode(s)
-    self._current_node = self._root_node
-    self._trace = {{nil, self._root_node}}
-  else
-    self._depth = nil
-    self._created_new_arc = nil
-    self._root_state = nil
-    self._root_node = nil
-    self._current_node = nil
-    self._trace = nil
-  end
+function UctModel:_newStats(r)
+  return {
+    score = r.score,
+    is_game_over = r.is_game_over,
+  }
 end
 
-function UctModel:startEpoch(s)
+function UctModel:_updateStats(r)
+  self._current_stats.score = r.score
+  self._current_stats.is_game_over = r.is_game_over
+end
+
+function UctModel:_estimateEndScore()
+  return
+    (self._current_stats.score - self._root_stats.score) +
+    (self._current_stats.is_game_over and 0 or 10)
+end
+
+function UctModel:_clear()
+  self._depth = nil
+  self._created_new_arc = nil
+  self._root_state = nil
+  self._root_node = nil
+  self._root_stats = nil
+  self._current_node = nil
+  self._current_stats = nil
+  self._trace = nil  
+end
+
+function UctModel:_init(r, s)
+  self._depth = 1
+  self._created_new_arc = false
+  self._root_state = s
+  self._root_node = self:_getNode(s)
+  self._root_stats = self:_newStats(r)
+  self._current_node = self._root_node
+  self._current_stats = self:_newStats(r)
+  self._trace = {{nil, self._root_node}}
+end
+
+function UctModel:startEpoch(r, s)
   self._epoch = self._epoch + 1
-  self._score = nil
   self._is_pre_stage = (self._ans_action_cursor <= #self._ans_actions)
 
   if self._is_pre_stage then
-    self:_init(nil)
+    self:_clear()
     self._tmp_ans_action_cursor = self._ans_action_cursor
   else
-    self:_init(s)
+    self:_init(r, s)
   end
 end
 
@@ -158,19 +179,19 @@ function UctModel:selectAction()
   return action
 end
 
-function UctModel:feedback(a, r, s, is_game_over)
-  self._score = is_game_over and 0 or r
-
+function UctModel:feedback(a, r, s)
   if self._is_pre_stage then
     if self._tmp_ans_action_cursor > self._ans_action_cursor then
       self._ans_action_cursor = self._tmp_ans_action_cursor
       self._tmp_ans_action_cursor = nil
-      self:_init(s)
+      self:_init(r, s)
       self._is_pre_stage = false
       return true  -- update game save
     end
   end
 
+  self:_updateStats(r)
+  
   print("depth = "..self._depth)
   self._depth = self._depth + 1
   
@@ -200,10 +221,10 @@ function UctModel:feedback(a, r, s, is_game_over)
 end
 
 function UctModel:stop()
-  if not self._is_pre_stage then
-    return self._depth > _MAX_DEPTH
+  if self._is_pre_stage then
+    return false
   end
-  return false
+  return self._depth > _MAX_DEPTH
 end
 
 function UctModel:_debugNodes()
@@ -212,7 +233,6 @@ function UctModel:_debugNodes()
   for i, a in ipairs(self._ans_actions) do
     self:_log(string.format("%d, ", a))
   end
-  self:_log(string.format("total_reward = %d", self._score))
   local node_count = 1
   for s, node in pairs(self._nodes) do
     self:_log(string.format("node #%d", node_count))
@@ -248,10 +268,11 @@ function UctModel:endEpoch()
     local arc, node = h[1], h[2]
     if arc then
       arc.nsim = arc.nsim + 1
+      local end_score = self:_estimateEndScore()
       if _MAX_Q then
-        arc.q = math.max(arc.q, self._score)
+        arc.q = math.max(arc.q, end_score)
       else
-        arc.q = arc.q + (self._score - arc.q) * 1.0 / arc.nsim
+        arc.q = arc.q + (end_score - arc.q) * 1.0 / arc.nsim
       end
     end
     if node then
@@ -268,8 +289,11 @@ function UctModel:endEpoch()
   end
   
   self:_log(string.format(
-              "epoch = %d, score = %.2f, #ans_actions = %d",
-              self._epoch, self._score, #self._ans_actions))
+              "epoch = %d, score = %.2f, dscore = %.2f, #ans_actions = %d",
+              self._epoch,
+              self._current_stats.score,
+              self._current_stats.score - self._root_stats.score,
+              #self._ans_actions))
   self:_debugNodes()
   self:_saveModel()
   return true
