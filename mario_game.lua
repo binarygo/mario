@@ -64,6 +64,10 @@ function sandbox:_update()
   end
 end
 
+function sandbox:reset()
+  self._save = nil
+end
+
 function sandbox:startGame()
   self:_init()
   emu.speedmode("normal")

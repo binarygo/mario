@@ -240,7 +240,7 @@ function UctModel:_saveModel()
   local model_save_to = self._save_to..".model."..id
 
   self:_log("Saving model to "..model_save_to)
-  torch.save(model_save_to, {self._nodes, self._ans_actions})
+  torch.save(model_save_to, self._ans_actions)
 end
 
 function UctModel:endEpoch()

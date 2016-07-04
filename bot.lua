@@ -43,6 +43,7 @@ function bot:doEpoch(model)
 end
 
 local function uct_main()
+  mario_game.sandbox:reset()
   mario_game.sandbox.state_choice = mario_game.STATE_CHOICE.ram_md5
   mario_game.sandbox.num_skpi_frames = 12
   bot.enable_debug = true
